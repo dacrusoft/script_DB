@@ -1,0 +1,147 @@
+---- POSTGRESQL
+
+-- Creación de tablas
+CREATE TABLE public.personas(
+    per_codigo serial NOT NULL,
+    per_nombres character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    per_apellidos character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    tii_codigo integer NOT NULL,
+    grs_codigo integer NOT NULL,
+    per_estado integer NOT NULL DEFAULT 1,
+    CONSTRAINT personas_pkey PRIMARY KEY (per_codigo),
+    CONSTRAINT fk_personas_tidpo_identidad FOREIGN KEY (tii_codigo)
+        REFERENCES public.tipo_identidad (tii_codigo) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+select * from personas
+
+CREATE TABLE public.tipo_identidad(
+	tii_codigo serial NOT NULL,
+    tii_nombre character varying NOT NULL,
+    tii_estado integer NOT NULL,
+    PRIMARY KEY (tii_codigo)	
+)
+
+-- Agregar datos
+INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Cédula de Ciudadanía', 1);
+INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Tarjeta de Identidad', 1);
+INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Pasaporte', 1);
+INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Cédula de Extranjería', 1);
+
+
+select * from tipo_identidad
+
+----- Manejo de datos
+-- update tipo_identidad set tii_estado = 0 where tii_codigo =1
+-- delete from tipo_identidad where tii_codigo=4
+
+
+-- Creación de tablas
+CREATE TABLE public.pasajeros
+(
+    pas_id serial,
+    pas_nombre character varying,
+    pas_direccion character varying,
+    CONSTRAINT pasajeros_pkey PRIMARY KEY (pas_id)
+)
+
+
+CREATE TABLE public.contador_pasajeros
+(
+    cop_id serial,
+    cop_fecha_registro time with time zone,
+    cop_contador_registro integer,
+    CONSTRAINT contador_pasajeros_pkey PRIMARY KEY (cop_id)
+)
+
+--- Creación de Trigger y Procedimiento Almancenado
+#Antes  de  definir  el  disparador  tendremos  que  definir  el  procedimiento  almacenado que  se  ejecutará  cuando  nuestro  disparador  se  active.
+#El  procedimiento  almacenado  usado  por  nuestro  disparador  se  puede  programar  en cualquiera  de  los  lenguajes  de  procedimientos  disponibles,  
+#entre  ellos,  el proporcionado  por  defecto  cuando  se  instala  PostgreSQL,  PL/pgSQL.
+#Un procedimiento almacenado en PostgreSQL se puede escribir en multiples lenguajes de programación. 
+#En una instalación por defecto de PostgreSQL podremos tener disponibles los siguientes lenguajes: PL/pgSQL, PL/Perl, PL/Tcl y PL/Python.
+
+
+CREATE FUNCTION public.registrador()
+	RETURNS TRIGGER
+	LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+ contador integer = 0;
+ i record;
+BEGIN
+ 	FOR i IN SELECT * FROM pasajeros LOOP
+	 contador := contador + 1;
+	END LOOP;
+	INSERT INTO contador_pasajeros(cop_fecha_registro, cop_contador_registro)
+	-- now() devuelve la fecha y hora actual
+	VALUES (now(), contador);
+	RETURN NEW;
+END
+$BODY$
+
+CREATE TRIGGER trigger_registrador
+AFTER INSERT
+ON pasajeros
+FOR EACH ROW
+EXECUTE PROCEDURE registrador();
+
+
+select * from pasajeros
+select * from contador_pasajeros
+
+INSERT INTO pasajeros(pas_nombre, pas_direccion)
+VALUES ('Juanito Alimaña', 'Cali, Colombia');
+
+
+--- MYSQL
+
+-- Selección de la DB, previamente creada
+use pw01;
+
+
+-- Creación de tablas
+create table persona(
+	per_codigo int not null primary key auto_increment,
+    per_nombre varchar(100) not null,
+    per_apellido varchar(100) not null,
+    per_email varchar(100) not null
+);
+
+create table auditoria_persona(
+	aup_codigo int not null primary key auto_increment,
+    aup_nombre varchar(100) not null,
+    aup_nombre_viejo varchar(100) null,
+    aup_apellido varchar(100) not null,
+    aup_apellido_viejo varchar(100) null,
+    aup_email varchar(100) not null,
+    aup_email_viejo varchar(100) null,
+    aup_usuario varchar(30) not null,
+    aup_fecha date not null,
+    aup_accion varchar(30) not null
+);
+
+-- Crear Triggers
+create trigger insertarPersona after insert on persona
+for each row
+insert into auditoria_persona(aup_nombre, aup_apellido, aup_email, aup_usuario, aup_fecha, aup_accion)
+values (new.per_nombre, new.per_apellido, new.per_email, current_user(), now(), 'INSERT');
+
+
+create trigger actualizarPersona after update on persona
+for each row
+insert into auditoria_persona(aup_nombre, aup_nombre_viejo, aup_apellido, aup_apellido_viejo, aup_email, aup_email_viejo, aup_usuario, aup_fecha, aup_accion)
+values (new.per_nombre, old.per_nombre, new.per_apellido, old.per_apellido, new.per_email, old.per_email, current_user(), now(), 'UPDATE');
+
+-- manejo de datos
+select * from persona
+select * from auditoria_persona
+
+-- Insertar datos
+insert into persona (`per_nombre`, `per_apellido`, `per_email`) 
+values ('Diego', 'Carvajal', 'diego.carvajal@usco.edu.co')
+
+update persona set per_nombre='Juan', per_apellido='Perez', per_email='juan@hotmail.com'
+ where per_codigo=1
