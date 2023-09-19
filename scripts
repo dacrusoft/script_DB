@@ -30,6 +30,10 @@ INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Tarjeta de I
 INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Pasaporte', 1);
 INSERT INTO public.tipo_identidad( tii_nombre, tii_estado) VALUES ('Cédula de Extranjería', 1);
 
+-- INNER JOIN (unión de tablas)
+select p.per_nombre, p.per_apellido, ti.tii_nombre
+from personas p
+inner join tipo_identidad ti ON p.tii_codigo = ti.tii_codigo
 
 select * from tipo_identidad
 
